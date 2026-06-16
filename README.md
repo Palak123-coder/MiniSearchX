@@ -1,8 +1,8 @@
 # MiniSearchX
 
-MiniSearchX is a multithreaded C++ search engine that indexes local text documents and returns ranked search results using an inverted index and TF-IDF scoring.
+MiniSearchX is a multithreaded C++ search engine that indexes local text documents and returns ranked search results using an inverted index, TF-IDF scoring, and BM25 ranking.
 
-This project demonstrates core software engineering concepts including data structures, algorithms, file processing, multithreading, synchronization, ranking, and performance benchmarking.
+This project demonstrates core software engineering concepts including data structures, algorithms, file processing, multithreading, synchronization, query processing, ranking, and performance benchmarking.
 
 ## Features
 
@@ -10,7 +10,9 @@ This project demonstrates core software engineering concepts including data stru
 * Tokenizes and normalizes text
 * Builds an inverted index using hash maps
 * Supports multi-word search queries
-* Ranks documents using TF-IDF scoring
+* Supports phrase search using quoted queries
+* Supports TF-IDF and BM25 ranking modes
+* Supports configurable top-K result count
 * Returns top search results using a priority queue
 * Supports multithreaded document indexing
 * Uses Windows synchronization primitives to protect shared index updates
@@ -25,6 +27,7 @@ This project demonstrates core software engineering concepts including data stru
 * Priority Queue
 * File I/O
 * TF-IDF Ranking
+* BM25 Ranking
 * Windows Threads
 * Critical Sections for Synchronization
 
@@ -67,7 +70,7 @@ learning -> doc2
 threads -> doc3
 ```
 
-When a user enters a search query, MiniSearchX calculates TF-IDF scores for matching documents and returns the highest-ranked results.
+When a user enters a search query, MiniSearchX calculates document scores using either TF-IDF or BM25 and returns the highest-ranked results.
 
 ## Inverted Index
 
@@ -79,11 +82,52 @@ This improves search efficiency and demonstrates the use of hash maps for fast l
 
 ## TF-IDF Ranking
 
-MiniSearchX ranks documents using TF-IDF scoring.
+MiniSearchX supports TF-IDF scoring.
 
 TF-IDF gives higher importance to terms that appear frequently in a specific document but are less common across the entire document collection.
 
 This allows the search engine to return more relevant results instead of only checking whether a word exists in a document.
+
+## BM25 Ranking
+
+MiniSearchX also supports BM25 ranking.
+
+BM25 improves upon basic TF-IDF by considering term frequency saturation and document length normalization. This makes it more suitable for ranked information retrieval systems where longer documents should not automatically dominate shorter ones.
+
+The ranking mode can be selected from the command line:
+
+```powershell
+.\minisearchx.exe benchmark_data 8 5 bm25
+```
+
+## Phrase Search
+
+MiniSearchX supports phrase search using quoted queries.
+
+Example:
+
+```text
+"machine learning"
+```
+
+For phrase search, the engine checks whether the query tokens appear consecutively in a document.
+
+## Top-K Retrieval
+
+MiniSearchX supports configurable top-K results.
+
+Example:
+
+```powershell
+.\minisearchx.exe data 4 3 tfidf
+```
+
+This command runs the engine with:
+
+* `data` as the input folder
+* `4` worker threads
+* `3` top results
+* `tfidf` as the ranking mode
 
 ## Multithreading Design
 
@@ -157,6 +201,12 @@ Run with 8 threads:
 .\minisearchx.exe benchmark_data 8
 ```
 
+Run with BM25 ranking:
+
+```powershell
+.\minisearchx.exe benchmark_data 8 5 bm25
+```
+
 ## How to Compile
 
 ```powershell
@@ -165,16 +215,29 @@ g++ -std=c++11 src/main.cpp -o minisearchx
 
 ## How to Run
 
-Run on the sample data folder:
+Run on the sample data folder with TF-IDF ranking:
 
 ```powershell
-.\minisearchx.exe data 4
+.\minisearchx.exe data 4 3 tfidf
 ```
 
-Run on the benchmark data folder:
+Run on the benchmark data folder with BM25 ranking:
 
 ```powershell
-.\minisearchx.exe benchmark_data 8
+.\minisearchx.exe benchmark_data 8 5 bm25
+```
+
+Command format:
+
+```powershell
+.\minisearchx.exe <folder_path> <thread_count> <top_k> <ranking_mode>
+```
+
+Supported ranking modes:
+
+```text
+tfidf
+bm25
 ```
 
 ## Example Queries
@@ -183,6 +246,9 @@ Run on the benchmark data folder:
 google systems
 machine learning
 threads synchronization
+"machine learning"
+distributed systems
+search engine
 ```
 
 To exit the search prompt:
@@ -194,26 +260,35 @@ exit
 ## Sample Output
 
 ```text
-MiniSearchX v2 started successfully.
-Indexed 1000 documents in 65 ms using 8 threads.
+MiniSearchX v3 started successfully.
+Indexed 1000 documents in 68 ms using 8 threads.
 Vocabulary size: 1032 unique terms.
+Average document length: 170 tokens.
+Top-K results: 5
+Ranking mode: bm25
+Use quotes for phrase search. Example: "machine learning"
 
-search> google systems
+search> "machine learning"
 Top results:
-1. benchmark_data\doc999.txt | score: 0.0294118
-2. benchmark_data\doc998.txt | score: 0.0294118
-3. benchmark_data\doc997.txt | score: 0.0294118
-Query latency: 0 microseconds.
+1. benchmark_data\doc999.txt | score: 0.00192164
+2. benchmark_data\doc998.txt | score: 0.00192164
+3. benchmark_data\doc997.txt | score: 0.00192164
+4. benchmark_data\doc996.txt | score: 0.00192164
+5. benchmark_data\doc995.txt | score: 0.00192164
+Query latency: 8763 microseconds.
 ```
 
 ## Key Concepts Demonstrated
 
 * Inverted indexing
 * TF-IDF ranking
+* BM25 ranking
+* Phrase search
 * Top-K retrieval
 * Hash maps
 * Priority queues
 * File processing
+* Query processing
 * Multithreaded indexing
 * Synchronization using critical sections
 * Benchmarking and performance comparison
@@ -222,17 +297,16 @@ Query latency: 0 microseconds.
 
 * Windows-specific implementation due to use of Windows API and Critical Sections
 * Supports `.txt` files only
-* Does not yet support phrase search
-* Does not yet support BM25 ranking
+* Benchmark documents are generated and mostly similar, so many BM25 scores can be identical
 * No unit tests added yet
+* Code is currently implemented in a single source file
 
 ## Future Improvements
 
-* Add BM25 ranking
-* Add phrase search
 * Add AND/OR query support
 * Add cross-platform filesystem support
 * Add unit tests
 * Refactor into modular header and source files
-* Add command-line options for top-K results
 * Add larger and more realistic benchmark datasets
+* Add stemming and stopword removal
+* Add snippet generation for search results
