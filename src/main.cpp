@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <queue>
@@ -35,18 +37,53 @@ public:
 
         return tokens;
     }
+
+    static string trimQuotes(const string& query) {
+        string result = query;
+
+        while (!result.empty() && isspace(static_cast<unsigned char>(result.front()))) {
+            result.erase(result.begin());
+        }
+
+        while (!result.empty() && isspace(static_cast<unsigned char>(result.back()))) {
+            result.pop_back();
+        }
+
+        if (result.size() >= 2 && result.front() == '"' && result.back() == '"') {
+            result = result.substr(1, result.size() - 2);
+        }
+
+        return result;
+    }
+
+    static bool isPhraseQuery(const string& query) {
+        string result = query;
+
+        while (!result.empty() && isspace(static_cast<unsigned char>(result.front()))) {
+            result.erase(result.begin());
+        }
+
+        while (!result.empty() && isspace(static_cast<unsigned char>(result.back()))) {
+            result.pop_back();
+        }
+
+        return result.size() >= 2 && result.front() == '"' && result.back() == '"';
+    }
 };
 
 class SearchEngine {
 private:
     vector<string> documents;
     vector<int> documentLengths;
+    vector<vector<string>> documentTokens;
 
     // term -> docId -> frequency
     unordered_map<string, unordered_map<int, int>> invertedIndex;
 
     // Windows synchronization primitive
     CRITICAL_SECTION indexLock;
+
+    double averageDocumentLength;
 
     struct WorkerArgs {
         SearchEngine* engine;
@@ -74,6 +111,7 @@ private:
         } while (FindNextFileA(hFind, &fileData));
 
         FindClose(hFind);
+        sort(files.begin(), files.end());
         return files;
     }
 
@@ -99,6 +137,7 @@ private:
 
         documents[docId] = filePath;
         documentLengths[docId] = static_cast<int>(tokens.size());
+        documentTokens[docId] = tokens;
 
         // Critical section: only shared invertedIndex update is locked.
         EnterCriticalSection(&indexLock);
@@ -120,15 +159,43 @@ private:
 
     static DWORD WINAPI threadEntryPoint(LPVOID param) {
         WorkerArgs* args = static_cast<WorkerArgs*>(param);
-
         args->engine->workerFunction(*(args->files), args->start, args->end);
-
         return 0;
+    }
+
+    bool containsPhrase(int docId, const vector<string>& phraseTokens) const {
+        if (phraseTokens.empty()) {
+            return false;
+        }
+
+        const vector<string>& tokens = documentTokens[docId];
+
+        if (phraseTokens.size() > tokens.size()) {
+            return false;
+        }
+
+        for (int i = 0; i <= static_cast<int>(tokens.size() - phraseTokens.size()); i++) {
+            bool match = true;
+
+            for (int j = 0; j < static_cast<int>(phraseTokens.size()); j++) {
+                if (tokens[i + j] != phraseTokens[j]) {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 public:
     SearchEngine() {
         InitializeCriticalSection(&indexLock);
+        averageDocumentLength = 0.0;
     }
 
     ~SearchEngine() {
@@ -152,6 +219,7 @@ public:
 
         documents.resize(totalDocs);
         documentLengths.resize(totalDocs, 0);
+        documentTokens.resize(totalDocs);
 
         vector<HANDLE> threadHandles;
         vector<WorkerArgs> workerArgs(threadCount);
@@ -190,14 +258,36 @@ public:
             CloseHandle(hThread);
         }
 
+        long long totalLength = 0;
+
+        for (int length : documentLengths) {
+            totalLength += length;
+        }
+
+        averageDocumentLength = totalDocs > 0 ? static_cast<double>(totalLength) / totalDocs : 0.0;
+
         return static_cast<int>(threadHandles.size());
     }
 
-    vector<pair<string, double>> search(const string& query, int topK = 5) {
-        vector<string> queryTokens = Tokenizer::tokenize(query);
+    vector<pair<string, double>> search(const string& query, int topK, const string& rankingMode) {
+        bool phraseMode = Tokenizer::isPhraseQuery(query);
+        string cleanedQuery = Tokenizer::trimQuotes(query);
+        vector<string> queryTokens = Tokenizer::tokenize(cleanedQuery);
 
         unordered_map<int, double> docScores;
         int totalDocs = static_cast<int>(documents.size());
+
+        vector<bool> allowedDocs(totalDocs, true);
+
+        if (phraseMode) {
+            fill(allowedDocs.begin(), allowedDocs.end(), false);
+
+            for (int docId = 0; docId < totalDocs; docId++) {
+                if (containsPhrase(docId, queryTokens)) {
+                    allowedDocs[docId] = true;
+                }
+            }
+        }
 
         for (const string& term : queryTokens) {
             if (invertedIndex.find(term) == invertedIndex.end()) {
@@ -205,18 +295,32 @@ public:
             }
 
             int docsWithTerm = static_cast<int>(invertedIndex[term].size());
-            double idf = log((1.0 + totalDocs) / (1.0 + docsWithTerm)) + 1.0;
 
             for (const auto& item : invertedIndex[term]) {
                 int docId = item.first;
                 int termFrequency = item.second;
 
-                if (documentLengths[docId] == 0) {
+                if (!allowedDocs[docId] || documentLengths[docId] == 0) {
                     continue;
                 }
 
-                double tf = static_cast<double>(termFrequency) / documentLengths[docId];
-                double score = tf * idf;
+                double score = 0.0;
+
+                if (rankingMode == "bm25") {
+                    double k1 = 1.5;
+                    double b = 0.75;
+
+                    double idf = log(1.0 + (totalDocs - docsWithTerm + 0.5) / (docsWithTerm + 0.5));
+                    double numerator = termFrequency * (k1 + 1.0);
+                    double denominator = termFrequency + k1 * (1.0 - b + b * (documentLengths[docId] / averageDocumentLength));
+
+                    score = idf * (numerator / denominator);
+                } else {
+                    double idf = log((1.0 + totalDocs) / (1.0 + docsWithTerm)) + 1.0;
+                    double tf = static_cast<double>(termFrequency) / documentLengths[docId];
+
+                    score = tf * idf;
+                }
 
                 docScores[docId] += score;
             }
@@ -250,6 +354,10 @@ public:
     int getVocabularySize() const {
         return static_cast<int>(invertedIndex.size());
     }
+
+    double getAverageDocumentLength() const {
+        return averageDocumentLength;
+    }
 };
 
 int getDefaultThreadCount() {
@@ -267,16 +375,35 @@ int getDefaultThreadCount() {
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        cout << "Usage: minisearchx.exe <folder_path> [thread_count]" << endl;
+        cout << "Usage: minisearchx.exe <folder_path> [thread_count] [top_k] [ranking_mode]" << endl;
+        cout << "ranking_mode: tfidf or bm25" << endl;
         return 1;
     }
 
     string folderPath = argv[1];
 
     int threadCount = getDefaultThreadCount();
+    int topK = 5;
+    string rankingMode = "tfidf";
 
     if (argc >= 3) {
         threadCount = atoi(argv[2]);
+    }
+
+    if (argc >= 4) {
+        topK = atoi(argv[3]);
+
+        if (topK <= 0) {
+            topK = 5;
+        }
+    }
+
+    if (argc >= 5) {
+        rankingMode = argv[4];
+
+        if (rankingMode != "tfidf" && rankingMode != "bm25") {
+            rankingMode = "tfidf";
+        }
     }
 
     SearchEngine engine;
@@ -287,10 +414,14 @@ int main(int argc, char* argv[]) {
 
     auto indexingTime = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
-    cout << "MiniSearchX v2 started successfully." << endl;
+    cout << "MiniSearchX v3 started successfully." << endl;
     cout << "Indexed " << engine.getDocumentCount() << " documents in "
          << indexingTime << " ms using " << threadsUsed << " threads." << endl;
     cout << "Vocabulary size: " << engine.getVocabularySize() << " unique terms." << endl;
+    cout << "Average document length: " << engine.getAverageDocumentLength() << " tokens." << endl;
+    cout << "Top-K results: " << topK << endl;
+    cout << "Ranking mode: " << rankingMode << endl;
+    cout << "Use quotes for phrase search. Example: \"machine learning\"" << endl;
 
     string query;
 
@@ -304,7 +435,7 @@ int main(int argc, char* argv[]) {
         }
 
         auto queryStart = chrono::high_resolution_clock::now();
-        vector<pair<string, double>> results = engine.search(query);
+        vector<pair<string, double>> results = engine.search(query, topK, rankingMode);
         auto queryEnd = chrono::high_resolution_clock::now();
 
         auto queryTime = chrono::duration_cast<chrono::microseconds>(queryEnd - queryStart).count();
