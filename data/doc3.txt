@@ -1,0 +1,1 @@
+Operating systems use threads, synchronization, mutexes, and scheduling for concurrent execution.
