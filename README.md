@@ -2,7 +2,7 @@
 
 MiniSearchX is a multithreaded C++ search engine that indexes local text documents and returns ranked search results using an inverted index, TF-IDF scoring, and BM25 ranking.
 
-This project demonstrates core software engineering concepts including data structures, algorithms, file processing, multithreading, synchronization, query processing, ranking, and performance benchmarking.
+This project demonstrates core software engineering concepts including data structures, algorithms, file processing, multithreading, synchronization, query processing, ranking, unit testing, and performance benchmarking.
 
 ## Features
 
@@ -17,6 +17,7 @@ This project demonstrates core software engineering concepts including data stru
 * Supports multithreaded document indexing
 * Uses Windows synchronization primitives to protect shared index updates
 * Measures indexing time and query latency
+* Includes unit tests for core search engine functionality
 * Includes benchmark results for single-threaded and multithreaded indexing
 
 ## Tech Stack
@@ -30,6 +31,7 @@ This project demonstrates core software engineering concepts including data stru
 * BM25 Ranking
 * Windows Threads
 * Critical Sections for Synchronization
+* PowerShell for test and benchmark scripts
 
 ## Project Structure
 
@@ -44,8 +46,12 @@ MiniSearchX/
 │   ├── doc2.txt
 │   └── doc3.txt
 │
+├── tests/
+│   └── test_minisearchx.cpp
+│
 ├── scripts/
-│   └── generate_benchmark_data.ps1
+│   ├── generate_benchmark_data.ps1
+│   └── run_tests.ps1
 │
 ├── screenshots/
 │   └── benchmark.png
@@ -278,6 +284,61 @@ Top results:
 Query latency: 8763 microseconds.
 ```
 
+## Unit Tests
+
+MiniSearchX includes unit tests for the core search engine functionality.
+
+The tests cover:
+
+* Tokenization and text normalization
+* Phrase-query detection
+* Quote trimming
+* Document indexing
+* Vocabulary generation
+* TF-IDF search
+* BM25 search
+* Phrase search
+* Top-K result limiting
+
+Run tests using:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_tests.ps1
+```
+
+You can also compile and run tests manually:
+
+```powershell
+g++ -std=c++11 tests/test_minisearchx.cpp -o test_minisearchx
+.\test_minisearchx.exe
+```
+
+Sample test result:
+
+```text
+Running MiniSearchX unit tests...
+[PASS] Tokenizer returns correct number of tokens
+[PASS] Tokenizer converts text to lowercase
+[PASS] Tokenizer removes punctuation
+[PASS] Tokenizer keeps numeric tokens
+[PASS] Detects quoted phrase query
+[PASS] Detects normal non-phrase query
+[PASS] Removes quotes from phrase query
+[PASS] Indexes all test documents
+[PASS] Builds non-empty vocabulary
+[PASS] Uses requested worker threads when possible
+[PASS] TF-IDF search returns results
+[PASS] TF-IDF ranks most relevant document first
+[PASS] Phrase search returns results
+[PASS] Phrase search finds exact phrase document
+[PASS] BM25 search returns results
+[PASS] Top-K limit is respected
+[PASS] BM25 ranks relevant document first
+
+Tests passed: 17
+Tests failed: 0
+```
+
 ## Key Concepts Demonstrated
 
 * Inverted indexing
@@ -291,6 +352,7 @@ Query latency: 8763 microseconds.
 * Query processing
 * Multithreaded indexing
 * Synchronization using critical sections
+* Unit testing
 * Benchmarking and performance comparison
 
 ## Current Limitations
@@ -298,14 +360,12 @@ Query latency: 8763 microseconds.
 * Windows-specific implementation due to use of Windows API and Critical Sections
 * Supports `.txt` files only
 * Benchmark documents are generated and mostly similar, so many BM25 scores can be identical
-* No unit tests added yet
 * Code is currently implemented in a single source file
 
 ## Future Improvements
 
 * Add AND/OR query support
 * Add cross-platform filesystem support
-* Add unit tests
 * Refactor into modular header and source files
 * Add larger and more realistic benchmark datasets
 * Add stemming and stopword removal
