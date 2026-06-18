@@ -373,6 +373,7 @@ int getDefaultThreadCount() {
     return cores;
 }
 
+#ifndef UNIT_TEST
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         cout << "Usage: minisearchx.exe <folder_path> [thread_count] [top_k] [ranking_mode]" << endl;
@@ -456,3 +457,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+#endif
