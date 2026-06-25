@@ -26,12 +26,12 @@ steps:
       install: mingw-w64-x86_64-gcc
 
   - name: Compile unit tests
-    shell: msys2 {0}
+    shell: "msys2 {0}"
     run: |
       g++ -std=c++11 tests/test_minisearchx.cpp -o test_minisearchx.exe
 
   - name: Run unit tests
-    shell: msys2 {0}
+    shell: "msys2 {0}"
     run: |
       ./test_minisearchx.exe
 ```
