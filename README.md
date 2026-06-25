@@ -1,6 +1,6 @@
 # MiniSearchX
 
-![C++ Tests](https://github.com/Palak123-coder/MiniSearchX/actions/workflows/cpp-tests.yml/badge.svg?branch=main)
+![C++ Tests](https://github.com/Palak123-coder/MiniSearchX/actions/workflows/cpp-tests.yml/badge.svg?branch=main&event=push)
 
 MiniSearchX is a multithreaded C++ search engine that indexes local text documents and returns ranked search results using an inverted index, TF-IDF scoring, and BM25 ranking.
 
