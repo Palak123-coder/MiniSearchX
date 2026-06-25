@@ -1,8 +1,10 @@
 # MiniSearchX
 
+![C++ Tests](https://github.com/Palak123-coder/MiniSearchX/actions/workflows/cpp-tests.yml/badge.svg?branch=main)
+
 MiniSearchX is a multithreaded C++ search engine that indexes local text documents and returns ranked search results using an inverted index, TF-IDF scoring, and BM25 ranking.
 
-This project demonstrates core software engineering concepts including data structures, algorithms, file processing, multithreading, synchronization, query processing, ranking, unit testing, and performance benchmarking.
+This project demonstrates core software engineering concepts including data structures, algorithms, file processing, multithreading, synchronization, query processing, ranking, unit testing, continuous integration, and performance benchmarking.
 
 ## Features
 
@@ -17,7 +19,8 @@ This project demonstrates core software engineering concepts including data stru
 * Supports multithreaded document indexing
 * Uses Windows synchronization primitives to protect shared index updates
 * Measures indexing time and query latency
-* Includes unit tests for core search engine functionality
+* Includes 17 unit tests for core search engine functionality
+* Includes GitHub Actions CI for automated C++ test execution
 * Includes benchmark results for single-threaded and multithreaded indexing
 
 ## Tech Stack
@@ -32,11 +35,16 @@ This project demonstrates core software engineering concepts including data stru
 * Windows Threads
 * Critical Sections for Synchronization
 * PowerShell for test and benchmark scripts
+* GitHub Actions for CI
 
 ## Project Structure
 
 ```text
 MiniSearchX/
+│
+├── .github/
+│   └── workflows/
+│       └── cpp-tests.yml
 │
 ├── src/
 │   └── main.cpp
@@ -286,7 +294,7 @@ Query latency: 8763 microseconds.
 
 ## Unit Tests
 
-MiniSearchX includes unit tests for the core search engine functionality.
+MiniSearchX includes 17 unit tests for the core search engine functionality.
 
 The tests cover:
 
@@ -295,6 +303,7 @@ The tests cover:
 * Quote trimming
 * Document indexing
 * Vocabulary generation
+* Worker-thread usage
 * TF-IDF search
 * BM25 search
 * Phrase search
@@ -339,6 +348,31 @@ Tests passed: 17
 Tests failed: 0
 ```
 
+## Continuous Integration
+
+MiniSearchX includes a GitHub Actions CI workflow that automatically builds and runs the C++ unit tests on push and pull request events.
+
+The CI workflow:
+
+1. Checks out the repository
+2. Sets up a Windows-based C++ build environment
+3. Compiles `tests/test_minisearchx.cpp`
+4. Runs the generated test executable
+5. Fails the workflow if any unit test fails
+
+Workflow file:
+
+```text
+.github/workflows/cpp-tests.yml
+```
+
+Latest verified local test result:
+
+```text
+Tests passed: 17
+Tests failed: 0
+```
+
 ## Key Concepts Demonstrated
 
 * Inverted indexing
@@ -353,14 +387,9 @@ Tests failed: 0
 * Multithreaded indexing
 * Synchronization using critical sections
 * Unit testing
+* GitHub Actions CI
 * Benchmarking and performance comparison
 
-## Current Limitations
-
-* Windows-specific implementation due to use of Windows API and Critical Sections
-* Supports `.txt` files only
-* Benchmark documents are generated and mostly similar, so many BM25 scores can be identical
-* Code is currently implemented in a single source file
 
 ## Future Improvements
 
