@@ -1,37 +1,35 @@
+@'
 name: C++ Tests
 
 on:
-push:
-branches:
-- main
-pull_request:
-branches:
-- main
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-build-and-test:
-name: Build and Run Unit Tests
-runs-on: windows-latest
+  build-and-test:
+    name: Build and Run Unit Tests
+    runs-on: windows-latest
 
-```
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  - name: Set up MSYS2 MinGW
-    uses: msys2/setup-msys2@v2
-    with:
-      msystem: MINGW64
-      update: true
-      install: mingw-w64-x86_64-gcc
+      - name: Set up MSYS2 MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
 
-  - name: Compile unit tests
-    shell: "msys2 {0}"
-    run: |
-      g++ -std=c++11 tests/test_minisearchx.cpp -o test_minisearchx.exe
+      - name: Compile unit tests
+        shell: powershell
+        run: C:\msys64\mingw64\bin\g++.exe -std=c++11 tests\test_minisearchx.cpp -o test_minisearchx.exe
 
-  - name: Run unit tests
-    shell: "msys2 {0}"
-    run: |
-      ./test_minisearchx.exe
-```
+      - name: Run unit tests
+        shell: powershell
+        run: .\test_minisearchx.exe
+'@ | Set-Content -Path ".github\workflows\cpp-tests.yml" -Encoding UTF8
